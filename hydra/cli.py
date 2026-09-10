@@ -22,7 +22,7 @@ for _s in (sys.stdout, sys.stderr):
 
 # subcommand -> (roadmap phase, one-line description)
 _PLANNED = {
-    "run": (3, "execute: worktree per task, dispatch, gate, merge"),
+    "run": (3, "execute all tasks: parallel dispatch, gate, merge"),
     "status": (3, "live run state"),
     "resume": (3, "continue a run from its last completed gate"),
     "reflect": (7, "distil recurring corrections into role lessons"),
@@ -53,6 +53,53 @@ def _cmd_plan(args: argparse.Namespace) -> int:
         print(f"hydra plan: {e}", file=sys.stderr)
         return 1
     return 0
+
+
+def _cmd_dispatch(args: argparse.Namespace) -> int:
+    from . import gitutil
+    from .config import load_config
+    from .dispatch import dispatch_one
+    from .tasks import load_tasks
+
+    try:
+        tasks = {t.id: t for t in load_tasks(args.tasks)}
+        if args.task_id not in tasks:
+            raise HydraError(f"no task {args.task_id!r} in {args.tasks} "
+                             f"(have: {', '.join(tasks)})")
+        task = tasks[args.task_id]
+        cfg = load_config(args.tasks)
+        driver = cfg.driver()
+        base = args.base or cfg.base_branch
+        timeout = args.timeout or cfg.timeout
+
+        print(f"hydra dispatch {task.id}  —  agent: {driver.name}")
+        print(f"  command: {driver.display_command()}  (prompt on stdin)")
+        if args.print_command:
+            return 0
+        if not driver.available():
+            raise HydraError(f"agent {driver.name!r} is not on PATH")
+
+        root = gitutil.repo_root(args.repo)
+        print(f"  repo: {root}   base: {base}   worktree: .hydra/wt/{task.id}")
+        print("  running…")
+        res = dispatch_one(root, task, driver, base=base, timeout=timeout,
+                           keep_worktree=args.keep)
+    except HydraError as e:
+        print(f"hydra dispatch: {e}", file=sys.stderr)
+        return 1
+
+    print(f"\n  agent: {'ok' if res.driver.ok else 'FAILED'} "
+          f"in {res.driver.duration_s:.0f}s   files changed: {res.files_changed}")
+    if res.error:
+        print(f"  ! {res.error}", file=sys.stderr)
+    if res.diff:
+        print("\n----- diff -----")
+        print(res.diff)
+    if args.keep and res.worktree_path:
+        print(f"\n  worktree kept: {res.worktree_path}  (branch {res.branch})")
+        print(f"  remove with: git -C {res.worktree_path.parent.parent.parent} "
+              f"worktree remove --force {res.worktree_path}")
+    return 0 if res.ok else 1
 
 
 def _cmd_planned(name: str):
@@ -90,6 +137,19 @@ def build_parser() -> argparse.ArgumentParser:
     pl.add_argument("tasks", nargs="?", default="tasks.toml",
                     help="task file (default: tasks.toml)")
     pl.set_defaults(func=_cmd_plan)
+
+    ds = sub.add_parser("dispatch", parents=[common],
+                        help="run ONE task end to end (worktree -> agent -> diff)")
+    ds.add_argument("task_id")
+    ds.add_argument("tasks", nargs="?", default="tasks.toml",
+                    help="task file (default: tasks.toml)")
+    ds.add_argument("--repo", default=".", help="target repo (default: cwd)")
+    ds.add_argument("--base", default=None, help="branch/ref to cut the worktree from")
+    ds.add_argument("--timeout", type=int, default=None, help="agent timeout in seconds")
+    ds.add_argument("--keep", action="store_true", help="keep the worktree after")
+    ds.add_argument("--print-command", action="store_true",
+                    help="show the agent command and exit — spend nothing")
+    ds.set_defaults(func=_cmd_dispatch)
 
     for name, (phase, desc) in _PLANNED.items():
         sp = sub.add_parser(name, parents=[common], help=f"[Phase {phase}] {desc}")

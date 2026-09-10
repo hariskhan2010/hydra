@@ -1,0 +1,19 @@
+# Copy to hydra.toml in your target repo. Every section is optional.
+
+[agent]
+# kind: "claude" | "qwen" | "generic". Omit to auto-detect (claude, then qwen).
+kind = "claude"
+# args appended after hydra's built-in flags (prompt always goes on stdin)
+args = ["--permission-mode", "acceptEdits"]
+# generic only — the command to launch; hydra pipes the prompt to its stdin
+# template = ["my-agent", "--headless"]
+timeout = 900
+
+[run]
+# branch or ref each task's worktree is cut from
+base_branch = "HEAD"
+
+[pricing]
+# only used by `hydra plan` for a $ estimate — per million tokens
+input_per_mtok = 3.0
+output_per_mtok = 15.0

@@ -5,24 +5,12 @@ projects token cost, and prints the batch layout. Dispatches nothing.
 """
 from __future__ import annotations
 
-import tomllib
 from pathlib import Path
 
 from . import estimate, governor
+from .config import load_config
 from .independence import WavePlan, plan_waves
 from .tasks import Task, load_tasks
-
-
-def _load_pricing(root: Path) -> tuple[float, float] | None:
-    cfg = root / "hydra.toml"
-    if not cfg.exists():
-        return None
-    try:
-        data = tomllib.loads(cfg.read_text(encoding="utf-8"))
-        p = data.get("pricing", {})
-        return float(p["input_per_mtok"]), float(p["output_per_mtok"])
-    except (tomllib.TOMLDecodeError, KeyError, ValueError, TypeError):
-        return None
 
 
 def render_plan(task_file: str | Path, *, max_agents: int | None = None) -> str:
@@ -82,7 +70,7 @@ def render_plan(task_file: str | Path, *, max_agents: int | None = None) -> str:
     lines.append(f"    total work      ~{serial_total:,} tokens (sum of all tasks)")
     lines.append(f"    critical path   ~{wall:,} tokens — {verdict}")
 
-    pricing = _load_pricing(task_file.resolve().parent)
+    pricing = load_config(task_file).pricing
     if pricing:
         pin, pout = pricing
         usd = estimate.dollars(list(ests.values()), pin, pout)

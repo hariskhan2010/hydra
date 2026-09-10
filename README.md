@@ -14,9 +14,12 @@ doesn't:
 - **Honest** — parallelizes only tasks with provably disjoint file sets; every perf claim links to a reproducible `eval/` script.
 - **No daemon** — one blocking CLI call, all state on disk.
 
-Status: **pre-alpha, Phase 1 done** (of 8). Working: `hydra doctor` (hardware →
-agent ceiling) and `hydra plan` (task file → parallel/sequential batches +
-token projection, nothing dispatched). See [ROADMAP.md](ROADMAP.md).
+Status: **pre-alpha, Phases 0–2 done** (of 8). Working:
+- `hydra doctor` — hardware → agent ceiling
+- `hydra plan <tasks.toml>` — parallel/sequential batches + token projection, nothing dispatched
+- `hydra dispatch <task> <tasks.toml>` — run ONE task end to end: worktree → agent (`claude` / `qwen` / generic) → captured diff
+
+See [ROADMAP.md](ROADMAP.md).
 
 ```
 $ hydra plan examples/tasks.toml
