@@ -14,12 +14,28 @@ doesn't:
 - **Honest** — parallelizes only tasks with provably disjoint file sets; every perf claim links to a reproducible `eval/` script.
 - **No daemon** — one blocking CLI call, all state on disk.
 
-Status: **pre-alpha, Phases 0–2 done** (of 8). Working:
+Status: **pre-alpha, Phases 0–3 done** (of 8) — **MVP works.** Commands:
 - `hydra doctor` — hardware → agent ceiling
 - `hydra plan <tasks.toml>` — parallel/sequential batches + token projection, nothing dispatched
-- `hydra dispatch <task> <tasks.toml>` — run ONE task end to end: worktree → agent (`claude` / `qwen` / generic) → captured diff
+- `hydra dispatch <task> <tasks.toml>` — run ONE task end to end
+- `hydra run <tasks.toml>` — run every task: parallel dispatch (governor-capped), per-task worktree + diff, `.hydra/runs/<id>/` state
+- `hydra status [run-id]` — the run's state table
+- `hydra resume [run-id]` — retry failed/skipped tasks, continue
 
-See [ROADMAP.md](ROADMAP.md).
+A failed task blocks its dependents and stops the run; `FAILURES.md` says why;
+`hydra resume` picks up from there. **No merge yet** — that's Phase 5. The diffs
+land in `.hydra/runs/<id>/diffs/`. See [ROADMAP.md](ROADMAP.md).
+
+```
+$ hydra run tasks.toml
+run 20260910-203432 — 3 task(s), base HEAD, governor allows 1
+batch 0: conf, slug  (1 at a time)
+  ✓ conf  (1 files, 0s)
+  ✓ slug  (1 files, 0s)
+batch 1: api  (1 at a time)
+  ✓ api  (1 files, 0s)
+  → 3 done · 0 failed · 0 skipped · 0 pending
+```
 
 ```
 $ hydra plan examples/tasks.toml

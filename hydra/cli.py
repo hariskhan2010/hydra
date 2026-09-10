@@ -22,11 +22,9 @@ for _s in (sys.stdout, sys.stderr):
 
 # subcommand -> (roadmap phase, one-line description)
 _PLANNED = {
-    "run": (3, "execute all tasks: parallel dispatch, gate, merge"),
-    "status": (3, "live run state"),
-    "resume": (3, "continue a run from its last completed gate"),
     "reflect": (7, "distil recurring corrections into role lessons"),
     "serve": (6, "MCP server — let an agent drive hydra"),
+    "merge": (5, "review-gate each task's diff, then merge in dependency order"),
 }
 
 
@@ -102,6 +100,56 @@ def _cmd_dispatch(args: argparse.Namespace) -> int:
     return 0 if res.ok else 1
 
 
+def _cmd_run(args: argparse.Namespace) -> int:
+    from . import gitutil
+    from .config import load_config
+    from .runner import run as run_tasks
+
+    try:
+        root = gitutil.repo_root(args.repo)
+        cfg = load_config(args.tasks)
+        driver = cfg.driver()
+        if not driver.available() and not args.dry_agent:
+            raise HydraError(f"agent {driver.name!r} not on PATH "
+                             f"(set [agent] in hydra.toml, or pass a task file next to one)")
+        out = run_tasks(root, args.tasks, cfg, driver,
+                        max_agents=args.max_agents, base=args.base,
+                        resume=args.resume, resume_id=args.run_id,
+                        on_event=lambda m: print(m))
+    except HydraError as e:
+        print(f"hydra run: {e}", file=sys.stderr)
+        return 1
+
+    print()
+    print(out.state.render_table())
+    if out.failed or out.skipped:
+        print(f"\nsee .hydra/runs/{out.state.run_id}/FAILURES.md")
+        print(f"fix and continue with:  hydra resume {out.state.run_id}")
+    else:
+        print(f"\nall tasks done. diffs in .hydra/runs/{out.state.run_id}/diffs/  "
+              f"(merge is Phase 5)")
+    return 1 if (out.failed or out.stopped_early) else 0
+
+
+def _cmd_status(args: argparse.Namespace) -> int:
+    from . import gitutil
+    from .runstate import RunState
+    try:
+        root = gitutil.repo_root(args.repo)
+        state = RunState.load(root, args.run_id)
+    except HydraError as e:
+        print(f"hydra status: {e}", file=sys.stderr)
+        return 1
+    print(state.render_table())
+    return 0
+
+
+def _cmd_resume(args: argparse.Namespace) -> int:
+    args.resume = True
+    args.dry_agent = False
+    return _cmd_run(args)
+
+
 def _cmd_planned(name: str):
     def run(_args: argparse.Namespace) -> int:
         phase, desc = _PLANNED[name]
@@ -150,6 +198,29 @@ def build_parser() -> argparse.ArgumentParser:
     ds.add_argument("--print-command", action="store_true",
                     help="show the agent command and exit — spend nothing")
     ds.set_defaults(func=_cmd_dispatch)
+
+    rn = sub.add_parser("run", parents=[common],
+                        help="execute every task in the file (parallel, governor-capped)")
+    rn.add_argument("tasks", nargs="?", default="tasks.toml")
+    rn.add_argument("--repo", default=".")
+    rn.add_argument("--base", default=None, help="branch/ref worktrees are cut from")
+    rn.add_argument("--resume", action="store_true", help="continue the latest run")
+    rn.add_argument("--run-id", default=None, help="resume a specific run id")
+    rn.add_argument("--dry-agent", action="store_true", help=argparse.SUPPRESS)
+    rn.set_defaults(func=_cmd_run)
+
+    st = sub.add_parser("status", parents=[common], help="show a run's state table")
+    st.add_argument("run_id", nargs="?", default=None, help="run id (default: latest)")
+    st.add_argument("--repo", default=".")
+    st.set_defaults(func=_cmd_status)
+
+    rs = sub.add_parser("resume", parents=[common],
+                        help="continue a stopped run from its recorded state")
+    rs.add_argument("run_id", nargs="?", default=None)
+    rs.add_argument("tasks", nargs="?", default="tasks.toml")
+    rs.add_argument("--repo", default=".")
+    rs.add_argument("--base", default=None)
+    rs.set_defaults(func=_cmd_resume)
 
     for name, (phase, desc) in _PLANNED.items():
         sp = sub.add_parser(name, parents=[common], help=f"[Phase {phase}] {desc}")

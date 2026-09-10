@@ -67,13 +67,16 @@ def files_conflict(t1: Task, t2: Task) -> list[tuple[str, str]]:
 
 # ---- dependency layering ---------------------------------------------------
 
-def _dependency_layers(tasks: list[Task]) -> list[list[str]]:
-    by_id = {t.id: t for t in tasks}
-    indeg = {t.id: len(t.depends_on) for t in tasks}
+def _dependency_layers(tasks: list[Task], satisfied: set[str]) -> list[list[str]]:
+    ids = {t.id for t in tasks}
+    # a dep counts only if it's another task in *this* set and not already done
+    indeg = {t.id: sum(1 for d in t.depends_on if d in ids and d not in satisfied)
+             for t in tasks}
     dependents: dict[str, list[str]] = {t.id: [] for t in tasks}
     for t in tasks:
         for d in t.depends_on:
-            dependents[d].append(t.id)
+            if d in ids and d not in satisfied:
+                dependents[d].append(t.id)
 
     layers: list[list[str]] = []
     ready = sorted(tid for tid, n in indeg.items() if n == 0)
@@ -146,11 +149,11 @@ def _split_by_files(layer_ids: list[str], by_id: dict[str, Task]) -> tuple[list[
     return groups, notes
 
 
-def plan_waves(tasks: list[Task]) -> WavePlan:
+def plan_waves(tasks: list[Task], satisfied: set[str] | None = None) -> WavePlan:
     if not tasks:
         raise HydraError("no tasks to plan")
     by_id = {t.id: t for t in tasks}
-    layers = _dependency_layers(tasks)
+    layers = _dependency_layers(tasks, satisfied or set())
 
     batches: list[Batch] = []
     for layer in layers:
