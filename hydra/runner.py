@@ -78,6 +78,13 @@ def run(root: str | Path, task_file: str | Path, cfg: Config, driver: Driver, *,
         emit(f"run {state.run_id} — {len(all_tasks)} task(s), base {base}, "
              f"governor allows {budget.max_agents}")
 
+    if cfg.policy.active:
+        from .policy import check_declared
+        violations = check_declared(all_tasks, cfg.policy)
+        if violations:
+            raise HydraError("policy check failed:\n  - " + "\n  - ".join(violations))
+        emit(f"policy: {len(all_tasks)} task(s) within bounds")
+
     remaining = [by_id[i] for i in state.pending_ids]
     if not remaining:
         emit("nothing to do — all tasks already done")
@@ -130,7 +137,7 @@ def run(root: str | Path, task_file: str | Path, cfg: Config, driver: Driver, *,
 
             d, f, notes_tails = _run_batch(
                 root, b, [by_id[i] for i in b.task_ids], driver, cfg, budget,
-                state, sc, role_text, hook, emit, base)
+                state, sc, role_text, hook, emit, base, cfg.routing)
             dispatched += d
             failed += f
             stderr_tails.update(notes_tails)
@@ -160,7 +167,7 @@ def _diff_files(diff: str) -> list[str]:
 
 
 def _run_batch(root, b, batch_tasks, driver, cfg, budget, state, sc,
-               role_text, hook, emit, base):
+               role_text, hook, emit, base, routing):
     """One batch: worktrees serial, agents parallel (governor-capped), diffs
     serial. Returns (dispatched, failed, {task_id: stderr_tail})."""
     for t in batch_tasks:
@@ -178,9 +185,14 @@ def _run_batch(root, b, batch_tasks, driver, cfg, budget, state, sc,
 
     drv_results: dict[str, object] = {}
     with ThreadPoolExecutor(max_workers=conc) as ex:
-        futs = {ex.submit(dispatch.run_agent, wts[t.id], t, driver, cfg.timeout,
-                          role_text=role_text(t), context_text=context_snapshot): t
-                for t in batch_tasks}
+        futs = {}
+        for t in batch_tasks:
+            model = routing.model_for(t) if routing.active else None
+            if model:
+                emit(f"  {t.id} -> model {model}")
+            futs[ex.submit(dispatch.run_agent, wts[t.id], t, driver, cfg.timeout,
+                           role_text=role_text(t), context_text=context_snapshot,
+                           model=model)] = t
         for fut in futs:
             drv_results[futs[fut].id] = fut.result()
 

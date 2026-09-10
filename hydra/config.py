@@ -21,6 +21,8 @@ from pathlib import Path
 
 from .drivers import Driver, autodetect, build_driver
 from .errors import HydraError
+from .policy import Policy
+from .routing import Routing
 
 
 @dataclass
@@ -34,6 +36,8 @@ class Config:
     source: Path | None
     budget_tokens: int | None = None
     review_mode: str = "rule"   # rule | agent
+    policy: Policy = field(default_factory=Policy)
+    routing: Routing = field(default_factory=Routing)
 
     def driver(self) -> Driver:
         if self.agent_kind is None:
@@ -95,4 +99,15 @@ def load_config(start: str | Path) -> Config:
     rev = data.get("review", {}) or {}
     if str(rev.get("mode", "")).lower() in ("rule", "agent"):
         c.review_mode = str(rev["mode"]).lower()
+
+    pol = data.get("policy", {}) or {}
+    c.policy = Policy(
+        allowed_paths=[str(x) for x in pol.get("allowed_paths", [])],
+        forbidden_paths=[str(x) for x in pol.get("forbidden_paths", [])],
+        max_files_per_task=int(pol["max_files_per_task"])
+        if str(pol.get("max_files_per_task", "")).isdigit() else None,
+    )
+
+    routing = data.get("routing", {}) or {}
+    c.routing = Routing(table={str(k): str(v) for k, v in routing.items()})
     return c

@@ -23,7 +23,6 @@ for _s in (sys.stdout, sys.stderr):
 # subcommand -> (roadmap phase, one-line description)
 _PLANNED = {
     "reflect": (7, "distil recurring corrections into role lessons"),
-    "serve": (6, "MCP server — let an agent drive hydra"),
 }
 
 
@@ -318,6 +317,11 @@ def build_parser() -> argparse.ArgumentParser:
     rl = sub.add_parser("roles", parents=[common], help="list available agent roles")
     rl.add_argument("--repo", default=".")
     rl.set_defaults(func=_cmd_roles)
+
+    sv = sub.add_parser("serve", parents=[common],
+                        help="MCP server over stdio — let an agent drive hydra")
+    sv.add_argument("--repo", default=".")
+    sv.set_defaults(func=lambda a: __import__("hydra.mcp", fromlist=["serve"]).serve(a.repo))
 
     for name, (phase, desc) in _PLANNED.items():
         sp = sub.add_parser(name, parents=[common], help=f"[Phase {phase}] {desc}")

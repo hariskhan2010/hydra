@@ -5,8 +5,9 @@
 kind = "claude"
 # args appended after hydra's built-in flags (prompt always goes on stdin)
 args = ["--permission-mode", "acceptEdits"]
-# generic only — the command to launch; hydra pipes the prompt to its stdin
-# template = ["my-agent", "--headless"]
+# generic only — the command to launch; hydra pipes the prompt to its stdin.
+# use {model} where the model name should go when [routing] is set.
+# template = ["my-agent", "--headless", "--model", "{model}"]
 timeout = 900
 
 [run]
@@ -17,3 +18,23 @@ base_branch = "HEAD"
 # only used by `hydra plan` for a $ estimate — per million tokens
 input_per_mtok = 3.0
 output_per_mtok = 15.0
+
+[budget]
+# hard token ceiling for a run — a batch that would exceed it is skipped
+tokens = 2_000_000
+
+[review]
+# "rule" (zero tokens, checks the agent stayed in its declared files) or "agent"
+mode = "rule"
+
+[routing]
+# model per task role (or the special "default"). passed to the driver.
+default   = "claude-sonnet-5"
+docs      = "claude-haiku-4-5"
+reviewer  = "claude-haiku-4-5"
+
+[policy]
+# checked before dispatch (a violation stops the run for free) and at merge
+allowed_paths      = ["src/**", "tests/**", "docs/**"]
+forbidden_paths    = [".github/**", "*.lock"]
+max_files_per_task = 8

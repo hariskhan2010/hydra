@@ -33,14 +33,15 @@ class Driver:
     def available(self) -> bool:
         return self.exe() is not None
 
-    def argv(self) -> list[str]:
+    def argv(self, model: str | None = None) -> list[str]:
         raise NotImplementedError
 
-    def display_command(self) -> str:
-        return " ".join(self.argv() or [f"<{self.name} not found on PATH>"])
+    def display_command(self, model: str | None = None) -> str:
+        return " ".join(self.argv(model) or [f"<{self.name} not found on PATH>"])
 
-    def run(self, prompt: str, cwd: str, timeout: int) -> DriverResult:
-        argv = self.argv()
+    def run(self, prompt: str, cwd: str, timeout: int,
+            model: str | None = None) -> DriverResult:
+        argv = self.argv(model)
         if not argv:
             return DriverResult(False, "", "", 0.0, f"{self.name} not found on PATH")
         t0 = time.time()
@@ -67,11 +68,12 @@ class ClaudeDriver(Driver):
     def exe(self) -> str | None:
         return shutil.which("claude")
 
-    def argv(self) -> list[str]:
+    def argv(self, model: str | None = None) -> list[str]:
         exe = self.exe()
         if not exe:
             return []
-        return [exe, "-p", "--output-format", "text", *self.extra_args]
+        m = ["--model", model] if model else []
+        return [exe, "-p", "--output-format", "text", *m, *self.extra_args]
 
 
 @dataclass
@@ -82,11 +84,12 @@ class QwenDriver(Driver):
     def exe(self) -> str | None:
         return shutil.which("qwen")
 
-    def argv(self) -> list[str]:
+    def argv(self, model: str | None = None) -> list[str]:
         exe = self.exe()
         if not exe:
             return []
-        return [exe, "-p", *self.extra_args]
+        m = ["--model", model] if model else []
+        return [exe, "-p", *m, *self.extra_args]
 
 
 @dataclass
@@ -102,11 +105,12 @@ class GenericDriver(Driver):
                                                   if "/" in self.template[0] or "\\" in self.template[0]
                                                   else None)
 
-    def argv(self) -> list[str]:
+    def argv(self, model: str | None = None) -> list[str]:
         if not self.template:
             return []
         head = shutil.which(self.template[0]) or self.template[0]
-        return [head, *self.template[1:], *self.extra_args]
+        parts = [head, *self.template[1:], *self.extra_args]
+        return [p.replace("{model}", model) if model else p for p in parts]
 
 
 _BUILTIN = {"claude": ClaudeDriver, "qwen": QwenDriver, "generic": GenericDriver}

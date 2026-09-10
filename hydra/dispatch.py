@@ -55,9 +55,10 @@ def prepare(root: str | Path, task: Task, base: str) -> Worktree:
 
 
 def run_agent(wt: Worktree, task: Task, driver: Driver, timeout: int, *,
-              role_text: str = "", context_text: str = "") -> DriverResult:
+              role_text: str = "", context_text: str = "",
+              model: str | None = None) -> DriverResult:
     return driver.run(prompt_for(task, role_text=role_text, context_text=context_text),
-                      str(wt.path), timeout)
+                      str(wt.path), timeout, model=model)
 
 
 def finalize(root: str | Path, task: Task, wt: Worktree, dr: DriverResult, *,
