@@ -49,13 +49,20 @@ class ReviewTest(unittest.TestCase):
     def test_empty_diff_fails(self):
         self.assertFalse(review_diff(T(["x"]), "").passed)
 
-    def test_scope_breach_fails(self):
-        r = review_diff(T(["src/slug.py"]), DIFF_SCOPE_BREACH)
+    def test_scope_breach_when_another_task_owns_the_file(self):
+        r = review_diff(T(["src/slug.py"]), DIFF_SCOPE_BREACH,
+                        other_task_files={"src/other.py"})
         self.assertFalse(r.passed)
         self.assertTrue(any("scope breach" in f for f in r.findings))
 
+    def test_undeclared_file_no_one_owns_is_allowed(self):
+        # touches src/other.py, which no other task declares -> fine (shared infra)
+        r = review_diff(T(["src/slug.py"]), DIFF_SCOPE_BREACH, other_task_files=set())
+        self.assertTrue(r.passed, r.findings)
+
     def test_declared_dir_glob_allows(self):
-        r = review_diff(T(["src/**"]), DIFF_SCOPE_BREACH)
+        r = review_diff(T(["src/**"]), DIFF_SCOPE_BREACH,
+                        other_task_files={"src/other.py"})
         self.assertTrue(r.passed, r.findings)
 
     def test_secret_flagged(self):

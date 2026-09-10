@@ -41,8 +41,10 @@ class ReviewResult:
 
 
 def review_diff(task: Task, diff: str, *, mode: str = "rule",
-                driver: Driver | None = None, timeout: int = 300) -> ReviewResult:
+                driver: Driver | None = None, timeout: int = 300,
+                other_task_files: set[str] | None = None) -> ReviewResult:
     findings: list[str] = []
+    other_task_files = other_task_files or set()
 
     if not diff.strip():
         findings.append("empty diff — nothing to merge")
@@ -50,10 +52,15 @@ def review_diff(task: Task, diff: str, *, mode: str = "rule",
     changed = files_in_diff(diff)
     if task.files:
         for f in changed:
-            if not any(specs_overlap(f, d) for d in task.files):
+            if any(specs_overlap(f, d) for d in task.files):
+                continue
+            # only a real problem if ANOTHER task declares this file — then a
+            # parallel edit could conflict. A file no task owns (conftest.py,
+            # __init__.py, a shared fixture) is fine.
+            if any(specs_overlap(f, d) for d in other_task_files):
                 findings.append(
-                    f"scope breach: touched {f!r}, not in declared files {list(task.files)} "
-                    f"— a parallel task may own it")
+                    f"scope breach: touched {f!r} — declared by another task, "
+                    f"a parallel edit could conflict")
 
     for pat in _SECRET_PATTERNS:
         if re.search(pat, diff):

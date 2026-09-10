@@ -62,11 +62,40 @@ class MergeTest(unittest.TestCase):
             self.assertNotIn("src/slug.py",
                              gitutil.git(["ls-tree", "-r", "--name-only", "HEAD"], cwd=root))
 
-    def test_scope_breach_blocks_merge(self):
+    def test_scope_breach_blocks_merge_when_another_task_owns_the_file(self):
         with TemporaryDirectory() as tmp:
             root = make_repo(Path(tmp) / "repo")
-            # the fake agent writes the FIRST declared file; declare a file, then
-            # hand-edit the task branch to also touch README to simulate a breach
+            # task `t` will be tampered to touch src/owned.py, which task `o` declares
+            tf = tasks_file(Path(tmp), """
+                [[task]]
+                id="t"
+                title="t"
+                prompt="make it"
+                files=["src/t.py"]
+                [[task]]
+                id="o"
+                title="o"
+                prompt="make it"
+                files=["src/owned.py"]
+            """)
+            out = run(root, tf, cfg(), driver())
+            dp = out.state.diff_path(root, "t")
+            dp.write_text(dp.read_text(encoding="utf-8") + textwrap.dedent("""
+                diff --git a/src/owned.py b/src/owned.py
+                --- a/src/owned.py
+                +++ b/src/owned.py
+                @@ -1 +1,2 @@
+                 x
+                +sneaky
+            """), encoding="utf-8")
+            by_id = {t.id: t for t in __import__("hydra.tasks", fromlist=["load_tasks"]).load_tasks(tf)}
+            m = merge_run(root, out.state, by_id)
+            self.assertFalse(m.ok)
+            self.assertTrue(m.blocked)
+
+    def test_undeclared_shared_file_does_not_block(self):
+        with TemporaryDirectory() as tmp:
+            root = make_repo(Path(tmp) / "repo")
             tf = tasks_file(Path(tmp), """
                 [[task]]
                 id="t"
@@ -75,21 +104,18 @@ class MergeTest(unittest.TestCase):
                 files=["src/t.py"]
             """)
             out = run(root, tf, cfg(), driver())
-            # tamper: add an out-of-scope change to the recorded diff
             dp = out.state.diff_path(root, "t")
             dp.write_text(dp.read_text(encoding="utf-8") + textwrap.dedent("""
-                diff --git a/README.md b/README.md
-                --- a/README.md
-                +++ b/README.md
-                @@ -1 +1,2 @@
-                 # test repo
-                +sneaky
+                diff --git a/conftest.py b/conftest.py
+                new file mode 100644
+                --- /dev/null
+                +++ b/conftest.py
+                @@ -0,0 +1 @@
+                +import sys
             """), encoding="utf-8")
             by_id = {t.id: t for t in __import__("hydra.tasks", fromlist=["load_tasks"]).load_tasks(tf)}
             m = merge_run(root, out.state, by_id)
-            self.assertFalse(m.ok)
-            self.assertTrue(m.blocked)
-            self.assertIn("t", m.blocked[0][0])
+            self.assertTrue(m.ok, (m.blocked, m.conflicted))
 
 
 if __name__ == "__main__":

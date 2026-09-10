@@ -53,14 +53,17 @@ def merge_run(root: str | Path, state: RunState, tasks_by_id: dict[str, Task], *
     gitutil.git(["branch", "-D", integ_branch], cwd=root, check=False)
     gitutil.git(["worktree", "add", "-b", integ_branch, str(integ_wt), state.base], cwd=root)
 
+    all_declared = {f for t in tasks_by_id.values() for f in t.files}
     out = MergeOutcome(integration_branch=integ_branch)
     try:
         for tid in _merge_order(done):
             task = tasks_by_id[tid]
             diff = state.diff_path(root, tid).read_text(encoding="utf-8") \
                 if state.diff_path(root, tid).exists() else ""
+            others = all_declared - set(task.files)
 
-            rr = review.review_diff(task, diff, mode=review_mode, driver=driver)
+            rr = review.review_diff(task, diff, mode=review_mode, driver=driver,
+                                    other_task_files=others)
             if not rr.passed:
                 out.blocked.append((tid, rr.findings))
                 emit(f"  ✗ {tid} blocked by review: {'; '.join(rr.findings)}")
