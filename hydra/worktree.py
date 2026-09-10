@@ -57,16 +57,25 @@ def remove(root: str | Path, task_id: str) -> None:
     gitutil.git(["worktree", "prune"], cwd=root, check=False)
 
 
-def capture_diff(wt: Worktree) -> str:
-    """All changes the agent made in the worktree, new files included."""
+def _stage_agent_work(wt: Worktree) -> None:
+    """Stage everything the agent changed EXCEPT hydra's own `.hydra/` metadata
+    (notes.md, run state, worktrees) — that is not the task's work product and
+    would trip the review gate's scope check."""
     gitutil.git(["add", "-A"], cwd=wt.path)
+    gitutil.git(["reset", "-q", "--", ".hydra"], cwd=wt.path, check=False)
+
+
+def capture_diff(wt: Worktree) -> str:
+    """All changes the agent made in the worktree, new files included,
+    excluding `.hydra/`."""
+    _stage_agent_work(wt)
     return gitutil.git(["diff", "--cached", "HEAD"], cwd=wt.path, check=False)
 
 
 def commit(wt: Worktree, message: str) -> bool:
     """Commit the agent's staged changes onto the task branch. False if nothing
     to commit."""
-    gitutil.git(["add", "-A"], cwd=wt.path)
+    _stage_agent_work(wt)
     if not gitutil.git(["diff", "--cached", "--name-only"], cwd=wt.path).strip():
         return False
     gitutil.git(["-c", "user.name=hydra", "-c", "user.email=hydra@localhost",
