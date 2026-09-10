@@ -16,14 +16,23 @@ BUILTIN = ("architect", "coder", "tester", "reviewer", "docs")
 def load_role(root: str | Path, name: str) -> str:
     name = name.strip().lower()
     override = Path(root) / ".hydra" / "roles" / f"{name}.md"
+    lessons = Path(root) / ".hydra" / "roles" / f"{name}.lessons.md"
+
+    base: str | None = None
     if override.exists():
-        return override.read_text(encoding="utf-8").strip()
-    try:
-        res = files(__package__) / f"{name}.md"
-        if res.is_file():
-            return res.read_text(encoding="utf-8").strip()
-    except (FileNotFoundError, ModuleNotFoundError):
-        pass
-    raise HydraError(
-        f"unknown role {name!r} — built-ins: {', '.join(BUILTIN)}; "
-        f"or add .hydra/roles/{name}.md")
+        base = override.read_text(encoding="utf-8").strip()
+    else:
+        try:
+            res = files(__package__) / f"{name}.md"
+            if res.is_file():
+                base = res.read_text(encoding="utf-8").strip()
+        except (FileNotFoundError, ModuleNotFoundError):
+            base = None
+    if base is None:
+        raise HydraError(
+            f"unknown role {name!r} — built-ins: {', '.join(BUILTIN)}; "
+            f"or add .hydra/roles/{name}.md")
+
+    if lessons.exists():
+        base += "\n\n" + lessons.read_text(encoding="utf-8").strip()
+    return base

@@ -21,9 +21,7 @@ for _s in (sys.stdout, sys.stderr):
         pass
 
 # subcommand -> (roadmap phase, one-line description)
-_PLANNED = {
-    "reflect": (7, "distil recurring corrections into role lessons"),
-}
+_PLANNED: dict = {}
 
 
 def _cmd_doctor(args: argparse.Namespace) -> int:
@@ -226,6 +224,28 @@ def _cmd_roles(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_reflect(args: argparse.Namespace) -> int:
+    from . import gitutil
+    from .config import load_config
+    from .reflect import reflect
+    try:
+        root = gitutil.repo_root(args.repo)
+        driver = None
+        if args.summarise:
+            driver = load_config(".").driver()
+        written = reflect(root, driver=driver)
+    except HydraError as e:
+        print(f"hydra reflect: {e}", file=sys.stderr)
+        return 1
+    if not written:
+        print("no recurring failures found — nothing to learn")
+        return 0
+    for role, path in written.items():
+        print(f"  {role}: {path}")
+    print("\nthese prepend to the role's prompt on the next run. edit or delete freely.")
+    return 0
+
+
 def _cmd_planned(name: str):
     def run(_args: argparse.Namespace) -> int:
         phase, desc = _PLANNED[name]
@@ -322,6 +342,13 @@ def build_parser() -> argparse.ArgumentParser:
                         help="MCP server over stdio — let an agent drive hydra")
     sv.add_argument("--repo", default=".")
     sv.set_defaults(func=lambda a: __import__("hydra.mcp", fromlist=["serve"]).serve(a.repo))
+
+    rf = sub.add_parser("reflect", parents=[common],
+                        help="distil recurring run failures into role lessons")
+    rf.add_argument("--repo", default=".")
+    rf.add_argument("--summarise", action="store_true",
+                    help="use the configured agent to summarise (costs tokens)")
+    rf.set_defaults(func=_cmd_reflect)
 
     for name, (phase, desc) in _PLANNED.items():
         sp = sub.add_parser(name, parents=[common], help=f"[Phase {phase}] {desc}")

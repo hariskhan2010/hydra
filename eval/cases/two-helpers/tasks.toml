@@ -1,0 +1,24 @@
+# Two independent helpers, then a consumer that depends on both.
+# `hydra plan` should put slug + upper in one batch, consume in the next.
+
+[[task]]
+id = "slug"
+title = "slugify helper"
+prompt = "Implement slugify(s) in src/slug.py: lowercase, spaces->'-', drop non [a-z0-9-]."
+files = ["src/slug.py"]
+role = "coder"
+
+[[task]]
+id = "upper"
+title = "shout helper"
+prompt = "Implement shout(s) in src/shout.py returning s.upper() with a trailing '!'."
+files = ["src/shout.py"]
+role = "coder"
+
+[[task]]
+id = "consume"
+title = "combine helper"
+prompt = "Implement headline(s) in src/headline.py = shout(slugify(s)). Import from src.slug and src.shout."
+files = ["src/headline.py"]
+role = "coder"
+depends_on = ["slug", "upper"]

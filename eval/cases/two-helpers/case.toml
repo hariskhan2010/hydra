@@ -1,0 +1,2 @@
+tasks = "tasks.toml"
+check = "python -m pytest -q"
