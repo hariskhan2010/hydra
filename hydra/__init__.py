@@ -1,9 +1,9 @@
 """hydra — a multi-agent orchestrator for coding-agent CLIs.
 
-Phases done: 0-7 of 8. plan/dispatch/run/status/resume/merge/context/roles/
-serve/reflect. Routing, policy engine, stdio MCP server, `hydra reflect` role
-lessons, and `eval/run_eval.py`. Remaining: 8 (remote offload + overpower).
-See ROADMAP.md.
+All 8 roadmap phases implemented (v0.9.0 — feature-complete, pre-1.0 pending
+real-world validation). Commands: doctor, plan, dispatch, run (+ --remote,
+--from-overpower), status, resume, merge, context, roles, serve, reflect.
+See ROADMAP.md for the honest caveats.
 """
 
-__version__ = "0.8.0"
+__version__ = "0.9.0"

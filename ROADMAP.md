@@ -64,7 +64,7 @@ self-reported. hydra keeps the real capabilities and fixes those four things.
 | **5** | Review gate per diff (`rule` + `agent`) · dependency-ordered merge into `hydra/run-<id>` · conflict surfacing (C5) · token ceiling (B7) | plan → parallel build → review → merge | ✅ done (before 4) |
 | **6** | Model routing table (A8) · `hydra serve` stdio MCP (A10) · policy engine (A12) | cost control + drivable by an agent | ✅ done |
 | **7** | `hydra reflect` -> `.hydra/roles/<r>.lessons.md` (A6) · `eval/run_eval.py` + a real case; SWE-bench a documented stub (A7, B9) | learning loop + honest numbers | ✅ done |
-| **8** | `hydra run --remote` offload (B8) · `using-hydra` skill + `.overpower` integration (B10) | laptop control plane, cloud muscle | next |
+| **8** | `hydra run --remote` offload (B8) · `using-hydra` skill + `hydra run --from-overpower` (B10) | laptop control plane, cloud muscle | ✅ done |
 
 **MVP = phases 0–3.** Everything after is additive; each phase ships something usable.
 

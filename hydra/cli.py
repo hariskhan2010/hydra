@@ -42,7 +42,12 @@ def _cmd_doctor(args: argparse.Namespace) -> int:
 def _cmd_plan(args: argparse.Namespace) -> int:
     from .planning import render_plan
     try:
-        print(render_plan(args.tasks, max_agents=args.max_agents))
+        tasks = None
+        if getattr(args, "from_overpower", False):
+            from . import gitutil
+            from .overpower import tasks_from_overpower
+            tasks = tasks_from_overpower(gitutil.repo_root(args.repo))
+        print(render_plan(args.tasks, max_agents=args.max_agents, tasks=tasks))
     except HydraError as e:
         print(f"hydra plan: {e}", file=sys.stderr)
         return 1
@@ -101,16 +106,37 @@ def _cmd_run(args: argparse.Namespace) -> int:
     from .config import load_config
     from .runner import run as run_tasks
 
+    if getattr(args, "remote", None):
+        from .remote import run_remote
+        extra = []
+        if args.max_agents:
+            extra += ["--max-agents", str(args.max_agents)]
+        if args.base:
+            extra += ["--base", args.base]
+        try:
+            return run_remote(args.repo, args.remote, args.tasks, extra,
+                              dry_run=args.dry_run, on_event=lambda m: print(m))
+        except HydraError as e:
+            print(f"hydra run --remote: {e}", file=sys.stderr)
+            return 1
+
     try:
         root = gitutil.repo_root(args.repo)
         cfg = load_config(args.tasks)
         driver = cfg.driver()
+        override = None
+        if getattr(args, "from_overpower", False):
+            from .overpower import tasks_from_overpower
+            override = tasks_from_overpower(root)
+            print(f"from .overpower: {len(override)} task(s) — "
+                  + ", ".join(t.id for t in override))
         if not driver.available() and not args.dry_agent:
             raise HydraError(f"agent {driver.name!r} not on PATH "
                              f"(set [agent] in hydra.toml, or pass a task file next to one)")
         out = run_tasks(root, args.tasks, cfg, driver,
                         max_agents=args.max_agents, base=args.base,
                         resume=args.resume, resume_id=args.run_id,
+                        tasks_override=override,
                         on_event=lambda m: print(m))
     except HydraError as e:
         print(f"hydra run: {e}", file=sys.stderr)
@@ -280,6 +306,9 @@ def build_parser() -> argparse.ArgumentParser:
                         help="dry-run: parallel-vs-sequential split + cost projection")
     pl.add_argument("tasks", nargs="?", default="tasks.toml",
                     help="task file (default: tasks.toml)")
+    pl.add_argument("--repo", default=".")
+    pl.add_argument("--from-overpower", action="store_true",
+                    help="read .overpower/plan.md as the task list")
     pl.set_defaults(func=_cmd_plan)
 
     ds = sub.add_parser("dispatch", parents=[common],
@@ -302,6 +331,12 @@ def build_parser() -> argparse.ArgumentParser:
     rn.add_argument("--base", default=None, help="branch/ref worktrees are cut from")
     rn.add_argument("--resume", action="store_true", help="continue the latest run")
     rn.add_argument("--run-id", default=None, help="resume a specific run id")
+    rn.add_argument("--from-overpower", action="store_true",
+                    help="read .overpower/plan.md as the task list")
+    rn.add_argument("--remote", default=None, metavar="HOST",
+                    help="offload the run to HOST (needs rsync+ssh here, hydra there)")
+    rn.add_argument("--dry-run", action="store_true",
+                    help="with --remote: print the rsync/ssh commands and stop")
     rn.add_argument("--dry-agent", action="store_true", help=argparse.SUPPRESS)
     rn.set_defaults(func=_cmd_run)
 

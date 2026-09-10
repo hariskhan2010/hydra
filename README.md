@@ -14,27 +14,40 @@ doesn't:
 - **Honest** — parallelizes only tasks with provably disjoint file sets; every perf claim links to a reproducible `eval/` script.
 - **No daemon** — one blocking CLI call, all state on disk.
 
-Status: **pre-alpha, Phases 0–5 done** (of 8) — the full plan → run → merge loop
-works, with specialised roles and shared memory. Commands:
-- `hydra doctor` — hardware → agent ceiling
-- `hydra plan <tasks.toml>` — parallel/sequential batches + token projection, nothing dispatched
-- `hydra dispatch <task> <tasks.toml>` — run ONE task end to end
-- `hydra run <tasks.toml>` — run every task: parallel dispatch (governor-capped), per-task worktree + diff, `.hydra/runs/<id>/` state
-- `hydra status [run-id]` — the run's state table
-- `hydra resume [run-id]` — retry failed/skipped tasks, continue
+Status: **v0.9.0 — all 8 roadmap phases implemented.** Feature-complete;
+pre-1.0 pending real-world validation (see [caveats](#honest-caveats)).
 
-- `hydra merge [run-id]` — review-gate each task's diff (`rule`: verifies the
-  agent stayed inside its declared files; `agent`: asks a model), then merge the
-  task branches in dependency order into `hydra/run-<id>`. Conflicts and failed
-  reviews stop it — hydra never touches your real branch.
-- `hydra context [query]` — show or FTS-search a run's shared memory
-- `hydra roles` — list the agent roles (architect / coder / tester / reviewer / docs)
+| command | what |
+|---|---|
+| `hydra doctor` | hardware → agent ceiling |
+| `hydra plan <tasks.toml>` | file-independence proof → parallel/sequential batches + token projection, nothing dispatched |
+| `hydra dispatch <task> <file>` | run ONE task end to end |
+| `hydra run <file>` | run every task: parallel dispatch (governor-capped), per-task worktree, `.hydra/runs/<id>/` state |
+| `hydra run --from-overpower` | read `.overpower/plan.md` as the task list |
+| `hydra run --remote <host>` | rsync to a bigger box, run there, fetch the branches back |
+| `hydra status` / `hydra resume` | run state table / retry failed + continue |
+| `hydra merge` | review-gate each diff, merge in dependency order into `hydra/run-<id>` (your branch untouched) |
+| `hydra context [query]` | show / FTS-search a run's shared memory |
+| `hydra roles` | list agent roles (architect / coder / tester / reviewer / docs) |
+| `hydra reflect` | distil recurring run failures into `.hydra/roles/<role>.lessons.md` |
+| `hydra serve` | stdio MCP server — let an agent drive hydra |
 
-A task can set `role = "coder"` and `depends_on`. Each agent gets the run's
-accumulated shared memory injected, and writes its own entry back. Lifecycle
-hooks live in `.hydra/hooks/` (`pre-task`, `post-batch`, …). A failed task
-blocks its dependents; `hydra resume` picks up from there. Remaining: model
-routing, MCP server, `hydra reflect`, remote offload. See [ROADMAP.md](ROADMAP.md).
+A task sets `role`, `files`, `depends_on`. Each agent gets the run's shared
+memory injected and writes its own entry back. `hydra.toml` configures the
+agent, model routing, a token budget, review mode, and a path policy. Lifecycle
+hooks live in `.hydra/hooks/`.
+
+## Honest caveats
+
+- **SWE-bench-Verified is a stub** — needs Docker + the dataset. `eval/` ships a
+  real self-contained case and the harness; no SWE-bench number is claimed.
+- **`--remote` is untested against a real host** — command construction is
+  unit-tested; the ssh/rsync round-trip has not run end to end.
+- **Dependent tasks build to an interface, not live code** — a task's worktree
+  is cut from `base`, not from its merged dependencies. Keep interfaces explicit
+  in prompts; shared memory carries the rest.
+- **On a 2-core / low-RAM box the governor caps concurrency to 1** — hydra runs
+  effectively sequential there. Real parallelism wants `--remote` to a bigger box.
 
 ```
 $ hydra run tasks.toml
@@ -59,22 +72,12 @@ $ hydra plan examples/tasks.toml
   critical path ~41,394 tokens — parallelism available but governor caps to 1 — no speedup here
 ```
 
-## Install (once there's something to run)
+## Install
 
 ```
-pipx install hydra-orchestrator     # or: pip install -e .
-```
-
-## Usage (target shape)
-
-```
-hydra plan                 # dry-run: parallel-vs-sequential split + cost projection
-hydra run                  # execute: worktree per task, dispatch, gate, merge
-hydra run --remote <host>  # offload the swarm to a bigger box
-hydra status               # live run state
-hydra resume <run-id>      # continue from the last completed gate
-hydra reflect              # distil recurring corrections into role lessons
-hydra serve                # MCP server — let an agent drive hydra
+pip install -e .        # or: pipx install hydra-orchestrator (once published)
+python -m pytest -q     # 82 tests
+python eval/run_eval.py # the eval harness
 ```
 
 ## Design principles

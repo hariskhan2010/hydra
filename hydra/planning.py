@@ -13,9 +13,10 @@ from .independence import WavePlan, plan_waves
 from .tasks import Task, load_tasks
 
 
-def render_plan(task_file: str | Path, *, max_agents: int | None = None) -> str:
+def render_plan(task_file: str | Path, *, max_agents: int | None = None,
+                tasks: list[Task] | None = None) -> str:
     task_file = Path(task_file)
-    tasks = load_tasks(task_file)
+    tasks = tasks if tasks is not None else load_tasks(task_file)
     by_id = {t.id: t for t in tasks}
     wp: WavePlan = plan_waves(tasks)
     budget = governor.compute(configured_max=max_agents)

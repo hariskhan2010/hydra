@@ -55,9 +55,10 @@ def _blocked_by_failures(tasks: dict[str, Task], failed: set[str]) -> set[str]:
 
 def run(root: str | Path, task_file: str | Path, cfg: Config, driver: Driver, *,
         max_agents: int | None = None, base: str | None = None,
-        resume: bool = False, resume_id: str | None = None, on_event=None) -> RunOutcome:
+        resume: bool = False, resume_id: str | None = None,
+        tasks_override: list[Task] | None = None, on_event=None) -> RunOutcome:
     root = gitutil.repo_root(root)
-    all_tasks = load_tasks(task_file)
+    all_tasks = tasks_override if tasks_override is not None else load_tasks(task_file)
     by_id = {t.id: t for t in all_tasks}
     base = base or cfg.base_branch
     budget = governor.compute(configured_max=max_agents)
