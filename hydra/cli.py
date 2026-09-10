@@ -184,6 +184,49 @@ def _cmd_merge(args: argparse.Namespace) -> int:
     return 1
 
 
+def _cmd_context(args: argparse.Namespace) -> int:
+    from . import gitutil
+    from .runstate import RunState
+    from .sharedmem import SharedContext
+    try:
+        root = gitutil.repo_root(args.repo)
+        state = RunState.load(root, args.run_id)
+    except HydraError as e:
+        print(f"hydra context: {e}", file=sys.stderr)
+        return 1
+    sc = SharedContext(root / ".hydra" / "runs" / state.run_id)
+    if args.query:
+        hits = sc.search(args.query)
+        if not hits:
+            print(f"no shared-memory entries match {args.query!r}")
+            return 0
+        for h in hits:
+            print(h + "\n")
+    else:
+        print(sc.current(limit_chars=100_000) or "(shared memory is empty)")
+    sc.close()
+    return 0
+
+
+def _cmd_roles(args: argparse.Namespace) -> int:
+    from .roles import BUILTIN, load_role
+    from . import gitutil
+    try:
+        root = gitutil.repo_root(args.repo)
+    except HydraError:
+        root = "."
+    print("built-in roles:")
+    for name in BUILTIN:
+        first = load_role(root, name).splitlines()[0]
+        print(f"  {name:<10} {first}")
+    ov = __import__("pathlib").Path(root) / ".hydra" / "roles"
+    if ov.is_dir():
+        extra = sorted(p.stem for p in ov.glob("*.md"))
+        if extra:
+            print("repo roles (.hydra/roles/):", ", ".join(extra))
+    return 0
+
+
 def _cmd_planned(name: str):
     def run(_args: argparse.Namespace) -> int:
         phase, desc = _PLANNED[name]
@@ -264,6 +307,17 @@ def build_parser() -> argparse.ArgumentParser:
     mg.add_argument("--review", choices=["rule", "agent"], default=None,
                     help="review mode (default: hydra.toml [review].mode or 'rule')")
     mg.set_defaults(func=_cmd_merge)
+
+    cx = sub.add_parser("context", parents=[common],
+                        help="show or search a run's shared memory")
+    cx.add_argument("query", nargs="?", default=None, help="FTS query (omit to dump all)")
+    cx.add_argument("--run-id", default=None)
+    cx.add_argument("--repo", default=".")
+    cx.set_defaults(func=_cmd_context)
+
+    rl = sub.add_parser("roles", parents=[common], help="list available agent roles")
+    rl.add_argument("--repo", default=".")
+    rl.set_defaults(func=_cmd_roles)
 
     for name, (phase, desc) in _PLANNED.items():
         sp = sub.add_parser(name, parents=[common], help=f"[Phase {phase}] {desc}")

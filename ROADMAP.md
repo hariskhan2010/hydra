@@ -60,7 +60,7 @@ self-reported. hydra keeps the real capabilities and fixes those four things.
 | **1** | Task model (`tasks.toml` reader) · **file-set independence proof (B1)** · hardware governor (B3) · `hydra plan` (B6) | dry-run split + cost projection, no dispatch | ✅ done |
 | **2** | Worktree manager · agent driver interface · **`claude` + `qwen` + generic drivers (B2)** · `hydra dispatch` (one task) · diff capture | one task, end to end | ✅ done |
 | **3** | Parallel dispatch (governor-capped) · `.hydra/runs/<id>/` state (B4) · `hydra run` · `hydra status` · `hydra resume` (A11) · `FAILURES.md` (B5) | **MVP — parallel execution** | ✅ done |
-| **4** | Role library (A1) · shared memory `.hydra/context.md` + FTS (A5) · lifecycle hooks (A9) | specialised roles sharing context | next |
+| **4** | Role library (A1: architect/coder/tester/reviewer/docs + repo overrides) · shared memory `.hydra/runs/<id>/context.md` + SQLite FTS (A5) · lifecycle hooks (A9) | specialised roles sharing context | ✅ done |
 | **5** | Review gate per diff (`rule` + `agent`) · dependency-ordered merge into `hydra/run-<id>` · conflict surfacing (C5) · token ceiling (B7) | plan → parallel build → review → merge | ✅ done (before 4) |
 | **6** | Model routing table (A8) · `hydra serve` MCP (A10) · policy engine (A12) · hooks-in (A9) | cost control + drivable by an agent | |
 | **7** | `hydra reflect` lessons (A6) · `eval/` SWE-bench harness (A7, B9) | learning loop + honest numbers | |

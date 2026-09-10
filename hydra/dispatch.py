@@ -32,24 +32,32 @@ class TaskResult:
         return sum(1 for ln in self.diff.splitlines() if ln.startswith("diff --git "))
 
 
-def prompt_for(task: Task) -> str:
+def prompt_for(task: Task, *, role_text: str = "", context_text: str = "") -> str:
     files = ("\nFiles you are expected to create or modify:\n"
              + "\n".join(f"  - {f}" for f in task.files)) if task.files else ""
-    return (
-        f"# Task: {task.title}\n\n"
-        f"{task.prompt}\n"
-        f"{files}\n\n"
-        "Work only within this directory. Make the change and stop — do not "
-        "commit, push, or open a PR."
-    )
+    parts: list[str] = []
+    if role_text.strip():
+        parts.append(role_text.strip())
+    if context_text.strip():
+        parts.append("# What earlier tasks in this run produced\n\n"
+                     + context_text.strip()
+                     + "\n\n(You cannot see their code directly — build to the "
+                       "interfaces described above.)")
+    parts.append(f"# Task: {task.title}\n\n{task.prompt}\n{files}")
+    parts.append("Work only within this directory. Make the change and stop — do "
+                 "not commit, push, or open a PR. Optional: leave a short note "
+                 "for later tasks in `.hydra/notes.md`.")
+    return "\n\n".join(parts)
 
 
 def prepare(root: str | Path, task: Task, base: str) -> Worktree:
     return worktree.create(root, task.id, base)
 
 
-def run_agent(wt: Worktree, task: Task, driver: Driver, timeout: int) -> DriverResult:
-    return driver.run(prompt_for(task), str(wt.path), timeout)
+def run_agent(wt: Worktree, task: Task, driver: Driver, timeout: int, *,
+              role_text: str = "", context_text: str = "") -> DriverResult:
+    return driver.run(prompt_for(task, role_text=role_text, context_text=context_text),
+                      str(wt.path), timeout)
 
 
 def finalize(root: str | Path, task: Task, wt: Worktree, dr: DriverResult, *,

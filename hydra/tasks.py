@@ -23,7 +23,7 @@ from pathlib import Path
 
 from .errors import HydraError
 
-_ALLOWED_KEYS = {"id", "title", "prompt", "files", "depends_on"}
+_ALLOWED_KEYS = {"id", "title", "prompt", "files", "depends_on", "role"}
 
 
 @dataclass(frozen=True)
@@ -33,6 +33,7 @@ class Task:
     prompt: str
     files: tuple[str, ...] = ()
     depends_on: tuple[str, ...] = ()
+    role: str | None = None
 
 
 def _norm(spec: str) -> str:
@@ -70,9 +71,10 @@ def load_tasks(path: str | Path) -> list[Task]:
 
         files = tuple(_norm(str(x)) for x in entry.get("files", []) if str(x).strip())
         deps = tuple(str(x).strip() for x in entry.get("depends_on", []) if str(x).strip())
+        role = str(entry["role"]).strip().lower() if entry.get("role") else None
         tasks.append(Task(id=tid, title=str(entry["title"]).strip(),
                           prompt=str(entry["prompt"]).strip(),
-                          files=files, depends_on=deps))
+                          files=files, depends_on=deps, role=role))
 
     ids = {t.id for t in tasks}
     for t in tasks:

@@ -14,7 +14,8 @@ doesn't:
 - **Honest** — parallelizes only tasks with provably disjoint file sets; every perf claim links to a reproducible `eval/` script.
 - **No daemon** — one blocking CLI call, all state on disk.
 
-Status: **pre-alpha, Phases 0–3 done** (of 8) — **MVP works.** Commands:
+Status: **pre-alpha, Phases 0–5 done** (of 8) — the full plan → run → merge loop
+works, with specialised roles and shared memory. Commands:
 - `hydra doctor` — hardware → agent ceiling
 - `hydra plan <tasks.toml>` — parallel/sequential batches + token projection, nothing dispatched
 - `hydra dispatch <task> <tasks.toml>` — run ONE task end to end
@@ -26,10 +27,14 @@ Status: **pre-alpha, Phases 0–3 done** (of 8) — **MVP works.** Commands:
   agent stayed inside its declared files; `agent`: asks a model), then merge the
   task branches in dependency order into `hydra/run-<id>`. Conflicts and failed
   reviews stop it — hydra never touches your real branch.
+- `hydra context [query]` — show or FTS-search a run's shared memory
+- `hydra roles` — list the agent roles (architect / coder / tester / reviewer / docs)
 
-A failed task blocks its dependents and stops the run; `FAILURES.md` says why;
-`hydra resume` picks up from there. Phase 4 (roles + shared memory) still to
-come. See [ROADMAP.md](ROADMAP.md).
+A task can set `role = "coder"` and `depends_on`. Each agent gets the run's
+accumulated shared memory injected, and writes its own entry back. Lifecycle
+hooks live in `.hydra/hooks/` (`pre-task`, `post-batch`, …). A failed task
+blocks its dependents; `hydra resume` picks up from there. Remaining: model
+routing, MCP server, `hydra reflect`, remote offload. See [ROADMAP.md](ROADMAP.md).
 
 ```
 $ hydra run tasks.toml
