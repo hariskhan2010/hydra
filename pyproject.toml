@@ -1,0 +1,28 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "hydra-orchestrator"
+version = "0.0.0"
+description = "A hardware-adaptive, agent-agnostic multi-agent orchestrator for coding-agent CLIs"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+keywords = ["agents", "orchestration", "claude-code", "qwen-code", "parallel", "worktree"]
+
+# stdlib-only core (subprocess + git CLI + sqlite3). No runtime deps by design.
+dependencies = []
+
+[project.optional-dependencies]
+embeddings = ["numpy"]           # only if shared-memory semantic search is enabled
+dev = ["pytest"]
+
+[project.scripts]
+hydra = "hydra.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["hydra"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
