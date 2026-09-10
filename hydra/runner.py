@@ -15,7 +15,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 
-from . import dispatch, gitutil, governor
+from . import dispatch, estimate, gitutil, governor
 from .config import Config
 from .drivers import Driver
 from .independence import plan_waves
@@ -84,6 +84,7 @@ def run(root: str | Path, task_file: str | Path, cfg: Config, driver: Driver, *,
     stderr_tails: dict[str, str] = {}
     stop = False
 
+    spent_tokens = 0
     for b in wp.batches:
         if stop:
             for tid in b.task_ids:
@@ -91,6 +92,18 @@ def run(root: str | Path, task_file: str | Path, cfg: Config, driver: Driver, *,
                 state.tasks[tid].note = "run stopped after an earlier failure"
             skipped += len(b.task_ids)
             continue
+
+        batch_est = sum(estimate.estimate_task(by_id[i]).total for i in b.task_ids)
+        if cfg.budget_tokens and spent_tokens + batch_est > cfg.budget_tokens:
+            emit(f"cost ceiling: ~{spent_tokens:,} spent, batch {b.index} would add "
+                 f"~{batch_est:,}, limit is {cfg.budget_tokens:,} — stopping")
+            for tid in b.task_ids:
+                state.tasks[tid].status = SKIPPED
+                state.tasks[tid].note = "skipped — token budget reached"
+            skipped += len(b.task_ids)
+            stop = True
+            continue
+        spent_tokens += batch_est
 
         batch_tasks = [by_id[i] for i in b.task_ids]
         for t in batch_tasks:

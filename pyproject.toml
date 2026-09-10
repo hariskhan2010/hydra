@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "hydra-orchestrator"
-version = "0.3.0"
+version = "0.5.0"
 description = "A hardware-adaptive, agent-agnostic multi-agent orchestrator for coding-agent CLIs"
 readme = "README.md"
 requires-python = ">=3.12"

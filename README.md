@@ -22,9 +22,14 @@ Status: **pre-alpha, Phases 0–3 done** (of 8) — **MVP works.** Commands:
 - `hydra status [run-id]` — the run's state table
 - `hydra resume [run-id]` — retry failed/skipped tasks, continue
 
+- `hydra merge [run-id]` — review-gate each task's diff (`rule`: verifies the
+  agent stayed inside its declared files; `agent`: asks a model), then merge the
+  task branches in dependency order into `hydra/run-<id>`. Conflicts and failed
+  reviews stop it — hydra never touches your real branch.
+
 A failed task blocks its dependents and stops the run; `FAILURES.md` says why;
-`hydra resume` picks up from there. **No merge yet** — that's Phase 5. The diffs
-land in `.hydra/runs/<id>/diffs/`. See [ROADMAP.md](ROADMAP.md).
+`hydra resume` picks up from there. Phase 4 (roles + shared memory) still to
+come. See [ROADMAP.md](ROADMAP.md).
 
 ```
 $ hydra run tasks.toml

@@ -61,6 +61,9 @@ def finalize(root: str | Path, task: Task, wt: Worktree, dr: DriverResult, *,
         if not diff.strip():
             error = "agent exited cleanly but changed no files"
     ok = dr.ok and bool(diff.strip())
+    if ok:
+        # commit onto the task branch so it can be merged later (Phase 5)
+        worktree.commit(wt, f"hydra: {task.id} — {task.title}")
     res = TaskResult(
         task_id=task.id, ok=ok, diff=diff, driver=dr,
         worktree_path=wt.path if keep_worktree else None,

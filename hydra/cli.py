@@ -24,7 +24,6 @@ for _s in (sys.stdout, sys.stderr):
 _PLANNED = {
     "reflect": (7, "distil recurring corrections into role lessons"),
     "serve": (6, "MCP server — let an agent drive hydra"),
-    "merge": (5, "review-gate each task's diff, then merge in dependency order"),
 }
 
 
@@ -150,6 +149,41 @@ def _cmd_resume(args: argparse.Namespace) -> int:
     return _cmd_run(args)
 
 
+def _cmd_merge(args: argparse.Namespace) -> int:
+    from . import gitutil
+    from .config import load_config
+    from .merge import merge_run
+    from .runstate import RunState
+    from .tasks import load_tasks
+
+    try:
+        root = gitutil.repo_root(args.repo)
+        state = RunState.load(root, args.run_id)
+        tasks_by_id = {t.id: t for t in load_tasks(args.tasks or state.task_file)}
+        cfg = load_config(args.tasks or state.task_file)
+        mode = args.review or cfg.review_mode
+        driver = cfg.driver() if mode == "agent" else None
+        out = merge_run(root, state, tasks_by_id, review_mode=mode,
+                        driver=driver, on_event=lambda m: print(m))
+    except HydraError as e:
+        print(f"hydra merge: {e}", file=sys.stderr)
+        return 1
+
+    print()
+    if out.ok:
+        print(f"merged {len(out.merged)} task(s) → branch {out.integration_branch}")
+        print(f"review it, then:  git merge {out.integration_branch}")
+        return 0
+    if out.conflicted:
+        print(f"merge conflict at task {out.conflicted!r} — nothing forced.")
+        print(f"partial branch: {out.integration_branch} ({len(out.merged)} merged)")
+    for tid, reasons in out.blocked:
+        print(f"task {tid!r} blocked by review:")
+        for r in reasons:
+            print(f"  - {r}")
+    return 1
+
+
 def _cmd_planned(name: str):
     def run(_args: argparse.Namespace) -> int:
         phase, desc = _PLANNED[name]
@@ -221,6 +255,15 @@ def build_parser() -> argparse.ArgumentParser:
     rs.add_argument("--repo", default=".")
     rs.add_argument("--base", default=None)
     rs.set_defaults(func=_cmd_resume)
+
+    mg = sub.add_parser("merge", parents=[common],
+                        help="review-gate each task's diff, then merge in dependency order")
+    mg.add_argument("run_id", nargs="?", default=None, help="run id (default: latest)")
+    mg.add_argument("tasks", nargs="?", default=None, help="task file (default: the run's)")
+    mg.add_argument("--repo", default=".")
+    mg.add_argument("--review", choices=["rule", "agent"], default=None,
+                    help="review mode (default: hydra.toml [review].mode or 'rule')")
+    mg.set_defaults(func=_cmd_merge)
 
     for name, (phase, desc) in _PLANNED.items():
         sp = sub.add_parser(name, parents=[common], help=f"[Phase {phase}] {desc}")

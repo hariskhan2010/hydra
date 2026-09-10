@@ -32,6 +32,8 @@ class Config:
     base_branch: str
     pricing: tuple[float, float] | None
     source: Path | None
+    budget_tokens: int | None = None
+    review_mode: str = "rule"   # rule | agent
 
     def driver(self) -> Driver:
         if self.agent_kind is None:
@@ -82,4 +84,15 @@ def load_config(start: str | Path) -> Config:
             c.pricing = (float(pricing["input_per_mtok"]), float(pricing["output_per_mtok"]))
     except (TypeError, ValueError):
         c.pricing = None
+
+    budget = data.get("budget", {}) or {}
+    if "tokens" in budget:
+        try:
+            c.budget_tokens = int(budget["tokens"])
+        except (TypeError, ValueError):
+            c.budget_tokens = None
+
+    rev = data.get("review", {}) or {}
+    if str(rev.get("mode", "")).lower() in ("rule", "agent"):
+        c.review_mode = str(rev["mode"]).lower()
     return c

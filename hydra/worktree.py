@@ -61,3 +61,14 @@ def capture_diff(wt: Worktree) -> str:
     """All changes the agent made in the worktree, new files included."""
     gitutil.git(["add", "-A"], cwd=wt.path)
     return gitutil.git(["diff", "--cached", "HEAD"], cwd=wt.path, check=False)
+
+
+def commit(wt: Worktree, message: str) -> bool:
+    """Commit the agent's staged changes onto the task branch. False if nothing
+    to commit."""
+    gitutil.git(["add", "-A"], cwd=wt.path)
+    if not gitutil.git(["diff", "--cached", "--name-only"], cwd=wt.path).strip():
+        return False
+    gitutil.git(["-c", "user.name=hydra", "-c", "user.email=hydra@localhost",
+                 "commit", "-q", "-m", message], cwd=wt.path)
+    return True

@@ -1,8 +1,8 @@
 """hydra — a multi-agent orchestrator for coding-agent CLIs.
 
-Phases done: 0 (scaffold), 1 (independence proof, `hydra plan`), 2 (drivers,
-`hydra dispatch`), 3 = MVP (`hydra run` parallel + `.hydra/runs/` state +
-`hydra status` + `hydra resume` + FAILURES.md). See ROADMAP.md.
+Phases done: 0-3 (MVP: plan/dispatch/run/status/resume) and 5 (`hydra merge` —
+review gate + dependency-ordered merge into an integration branch + token
+ceiling). Phase 4 (roles + shared memory) still pending. See ROADMAP.md.
 """
 
-__version__ = "0.3.0"
+__version__ = "0.5.0"
