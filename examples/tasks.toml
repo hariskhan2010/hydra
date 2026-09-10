@@ -1,0 +1,33 @@
+# Example hydra task file. Run:  hydra plan examples/tasks.toml
+#
+# Four tasks. `slug` and `config` touch disjoint files with no dependency, so
+# they parallelise. `api` depends on both. `docs` touches only README, so it
+# rides alongside `api` in the last batch.
+
+[[task]]
+id = "slug"
+title = "Add a slugify() helper"
+prompt = "Implement slugify(text) -> str in src/text/slug.py: lowercase, spaces to hyphens, strip non-alphanumerics. Add tests in tests/test_slug.py."
+files = ["src/text/slug.py", "tests/test_slug.py"]
+depends_on = []
+
+[[task]]
+id = "config"
+title = "Add a config loader"
+prompt = "Implement load_config(path) in src/config.py reading TOML into a dataclass. Tests in tests/test_config.py."
+files = ["src/config.py", "tests/test_config.py"]
+depends_on = []
+
+[[task]]
+id = "api"
+title = "Wire the HTTP endpoint"
+prompt = "Add GET /slug?text=... in src/api.py using slugify() and the loaded config. Tests in tests/test_api.py."
+files = ["src/api.py", "tests/test_api.py"]
+depends_on = ["slug", "config"]
+
+[[task]]
+id = "docs"
+title = "Document the endpoint"
+prompt = "Add a Usage section to README.md describing GET /slug."
+files = ["README.md"]
+depends_on = ["slug", "config"]

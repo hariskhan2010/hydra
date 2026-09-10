@@ -14,8 +14,21 @@ doesn't:
 - **Honest** — parallelizes only tasks with provably disjoint file sets; every perf claim links to a reproducible `eval/` script.
 - **No daemon** — one blocking CLI call, all state on disk.
 
-Status: **pre-alpha, Phase 0.** Scaffold only. See [ROADMAP.md](ROADMAP.md) for
-the full feature spec and the phase plan.
+Status: **pre-alpha, Phase 1 done** (of 8). Working: `hydra doctor` (hardware →
+agent ceiling) and `hydra plan` (task file → parallel/sequential batches +
+token projection, nothing dispatched). See [ROADMAP.md](ROADMAP.md).
+
+```
+$ hydra plan examples/tasks.toml
+  4 task(s), 2 batch(es), governor allows 1 concurrent
+  batch 0  [parallel x2 (governor runs 1 at a time)]
+    - config: Add a config loader
+    - slug: Add a slugify() helper
+  batch 1  [parallel x2 (governor runs 1 at a time)]
+    - api: Wire the HTTP endpoint
+    - docs: Document the endpoint
+  critical path ~41,394 tokens — parallelism available but governor caps to 1 — no speedup here
+```
 
 ## Install (once there's something to run)
 

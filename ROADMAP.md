@@ -54,17 +54,17 @@ self-reported. hydra keeps the real capabilities and fixes those four things.
 
 ## Build phases
 
-| Phase | Scope | Ships |
-|---|---|---|
-| **0** | Repo scaffold, `hydra` package, CLI skeleton, `hydra.toml` schema, this roadmap | `hydra --help`, `hydra --version` |
-| **1** | Task model (`tasks.toml` / `.overpower` plan reader) · **file-set independence proof (B1)** · hardware governor (B3) · `hydra plan` (B6) | dry-run split + cost projection, no dispatch |
-| **2** | Worktree manager · agent driver interface · **`claude -p` + `qwen -p` drivers (B2)** · single-task dispatch · diff capture | one task, end to end |
-| **3** | Parallel dispatch (governor-capped) · `.hydra/run-<id>/` state (B4) · `hydra status` · `hydra resume` (A11) · `FAILURES.md` (B5) | **MVP — parallel execution** |
-| **4** | Role library (A1) · shared memory `.hydra/context.md` + FTS (A5) · lifecycle hooks (A9) | specialised roles sharing context |
-| **5** | Review gate per diff (reviewer role) · dependency-ordered merge · conflict surfacing (C5) · cost ceiling (B7) | plan → parallel build → review → merge |
-| **6** | Model routing table (A8) · `hydra serve` MCP (A10) · policy engine (A12) · hooks-in (A9) | cost control + drivable by an agent |
-| **7** | `hydra reflect` lessons (A6) · `eval/` SWE-bench harness (A7, B9) | learning loop + honest numbers |
-| **8** | `hydra run --remote` offload (B8) · `using-hydra` skill + `.overpower` integration (B10) | laptop control plane, cloud muscle |
+| Phase | Scope | Ships | Status |
+|---|---|---|---|
+| **0** | Repo scaffold, `hydra` package, CLI skeleton, this roadmap | `hydra --help`, `hydra --version`, `hydra doctor` | ✅ `c6c732d` |
+| **1** | Task model (`tasks.toml` reader) · **file-set independence proof (B1)** · hardware governor (B3) · `hydra plan` (B6) | dry-run split + cost projection, no dispatch | ✅ done |
+| **2** | Worktree manager · agent driver interface · **`claude -p` + `qwen -p` drivers (B2)** · single-task dispatch · diff capture | one task, end to end | next |
+| **3** | Parallel dispatch (governor-capped) · `.hydra/run-<id>/` state (B4) · `hydra status` · `hydra resume` (A11) · `FAILURES.md` (B5) | **MVP — parallel execution** | |
+| **4** | Role library (A1) · shared memory `.hydra/context.md` + FTS (A5) · lifecycle hooks (A9) | specialised roles sharing context | |
+| **5** | Review gate per diff (reviewer role) · dependency-ordered merge · conflict surfacing (C5) · cost ceiling (B7) | plan → parallel build → review → merge | |
+| **6** | Model routing table (A8) · `hydra serve` MCP (A10) · policy engine (A12) · hooks-in (A9) | cost control + drivable by an agent | |
+| **7** | `hydra reflect` lessons (A6) · `eval/` SWE-bench harness (A7, B9) | learning loop + honest numbers | |
+| **8** | `hydra run --remote` offload (B8) · `using-hydra` skill + `.overpower` integration (B10) | laptop control plane, cloud muscle | |
 
 **MVP = phases 0–3.** Everything after is additive; each phase ships something usable.
 
